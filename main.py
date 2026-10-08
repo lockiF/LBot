@@ -11,13 +11,11 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8968356151:AAHPbdJbRJEeC4MbBEWCzIe7u_F1A39Zv
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Хранилище статусов
 status_data = {
     "home": {"status": "Неизвестно", "time": "—"},
     "danya": {"status": "Неизвестно", "time": "—"}
 }
 
-# Меню кнопок
 keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🏠 Дом"), KeyboardButton(text="🎮 Даня")],
@@ -55,7 +53,6 @@ async def check_all(message: types.Message):
         parse_mode="Markdown"
     )
 
-# Обработчик запросов от MacroDroid
 async def handle_ping(request):
     place = request.query.get("place")
     state = request.query.get("state")
@@ -70,7 +67,6 @@ async def run_server():
     app = web.Application()
     app.router.add_get("/", handle_ping)
     app.router.add_get("/ping", handle_ping)
-    
     port = int(os.getenv("PORT", 8080))
     runner = web.AppRunner(app)
     await runner.setup()
@@ -83,4 +79,4 @@ async def main():
 
 if __name__ == "__main__":
     asynci
-  o.run(main())
+    o.run(main())
