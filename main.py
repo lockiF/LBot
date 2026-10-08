@@ -63,20 +63,22 @@ async def handle_ping(request):
         return web.Response(text="OK")
     return web.Response(text="Ping alive", status=200)
 
-async def run_server():
+async def on_startup(app):
+    # Запускаем поллинг сообщений бота в фоне
+    asyncio.create_task(dp.start_polling(bot))
+
+async def on_shutdown(app):
+    await bot.session.close()
+
+def init_app():
     app = web.Application()
     app.router.add_get("/", handle_ping)
     app.router.add_get("/ping", handle_ping)
-    port = int(os.getenv("PORT", 8080))
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-
-async def main():
-    await run_server()
-    await dp.start_polling(bot)
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+    return app
 
 if __name__ == "__main__":
-    asynci
-    o.run(main())
+    port = int(os.getenv("PORT", 10000))
+    web.run_app(init_app(), host="0.0.0.
+    0", port=port)
