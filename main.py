@@ -57,5 +57,4 @@ app.router.add_get("/ping", ping)
 app.on_startup.append(start_bot)
 
 if __name__ == "__main__":
-    web.run_app(app, port=int(os.getenv("PORT
-    ", 10000)))
+    web.run_app(app, port=int(os.getenv("PORT", 10000)))
