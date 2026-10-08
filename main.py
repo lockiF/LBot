@@ -1,9 +1,10 @@
 import os, asyncio
+import os, asyncio
 from datetime import datetime
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message
 
 BOT_TOKEN = "8968356151:AAHPbdJbRJEeC4MbBEWCzIe7u_F1A39Zvxo"
 bot = Bot(token=BOT_TOKEN)
@@ -11,49 +12,54 @@ dp = Dispatcher()
 
 # Данные по точкам
 data = {
-    "home": {"name": "Дом", "s": "Неизвестно", "t": "—"},
+    "home": {"name": "Хата", "s": "Неизвестно", "t": "—"},
     "danya": {"name": "Даня", "s": "Неизвестно", "t": "—"}
 }
 
-# Подписки пользователей: {user_id: {"home": True, "danya": False}}
+# Подписки пользователей: {user_id: {"home": True, "danya": True}}
 subs = {}
 
-def get_kb(user_id):
+def get_reply_kb(user_id):
     user_sub = subs.setdefault(user_id, {"home": True, "danya": True})
-    h_ico = "🔔" if user_sub["home"] else "🔕"
-    d_ico = "🔔" if user_sub["danya"] else "🔕"
+    h_text = f"🏠 Хата: {'🔔 ВКЛ' if user_sub['home'] else '🔕 ВЫКЛ'}"
+    d_text = f"🎮 Даня: {'🔔 ВКЛ' if user_sub['danya'] else '🔕 ВЫКЛ'}"
     
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text=f"🏠 Хата {h_ico}", callback_data="toggle_home"),
-            InlineKeyboardButton(text=f"👺 Даня {d_ico}", callback_data="toggle_danya")
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=h_text), KeyboardButton(text=d_text)],
+            [KeyboardButton(text="📊 Проверить статус")]
         ],
-        [
-            InlineKeyboardButton(text="📊 Статус", callback_data="check_status")
-        ]
-    ])
+        resize_keyboard=True,
+        persistent=True
+    )
 
 @dp.message(Command("start"))
 async def start_cmd(m: Message):
     subs.setdefault(m.chat.id, {"home": True, "danya": True})
     await m.answer(
-        "👋 **Панель мониторинга света**\n\n"
-        "Нажимай на кнопки ниже, чтобы включить (🔔) или выключить (🔕) пуши по конкретной точке:",
-        reply_markup=get_kb(m.chat.id),
-        parse_mode="Markdown"
+        "Панель мониторинга готова! Кнопки всегда внизу экрана 👇",
+        reply_markup=get_reply_kb(m.chat.id)
     )
 
-@dp.callback_query(F.data.startswith("toggle_"))
-async def toggle_sub(call: CallbackQuery):
-    place = call.data.replace("toggle_", "")
-    user_sub = subs.setdefault(call.from_user.id, {"home": True, "danya": True})
-    user_sub[place] = not user_sub[place]
-    
-    await call.message.edit_reply_markup(reply_markup=get_kb(call.from_user.id))
-    await call.answer("Настройки обновлены!")
+# Переключение Хаты
+@dp.message(F.text.startswith("🏠 Хата:"))
+async def toggle_home(m: Message):
+    user_sub = subs.setdefault(m.chat.id, {"home": True, "danya": True})
+    user_sub["home"] = not user_sub["home"]
+    state_str = "ВКЛЮЧЕНЫ 🔔" if user_sub["home"] else "ВЫКЛЮЧЕНЫ 🔕"
+    await m.answer(f"Уведомления по Хате {state_str}", reply_markup=get_reply_kb(m.chat.id))
 
-@dp.callback_query(F.data == "check_status")
-async def check_now(call: CallbackQuery):
+# Переключение Дани
+@dp.message(F.text.startswith("🎮 Даня:"))
+async def toggle_danya(m: Message):
+    user_sub = subs.setdefault(m.chat.id, {"home": True, "danya": True})
+    user_sub["danya"] = not user_sub["danya"]
+    state_str = "ВКЛЮЧЕНЫ 🔔" if user_sub["danya"] else "ВЫКЛЮЧЕНЫ 🔕"
+    await m.answer(f"Уведомления по Дане {state_str}", reply_markup=get_reply_kb(m.chat.id))
+
+# Проверка статуса
+@dp.message(F.text == "📊 Проверить статус")
+async def check_status(m: Message):
     h = data["home"]
     d = data["danya"]
     h_ico = "🟢" if h["s"] == "Есть" else "🔴" if h["s"] == "Нет" else "⚪"
@@ -61,13 +67,12 @@ async def check_now(call: CallbackQuery):
     
     text = (
         f"📊 **Текущее состояние:**\n\n"
-        f"{h_ico} **Дом:** {h['s']} (с {h['t']})\n"
+        f"{h_ico} **Хата:** {h['s']} (с {h['t']})\n"
         f"{d_ico} **Даня:** {d['s']} (с {d['t']})"
     )
-    await call.answer()
-    await call.message.answer(text, parse_mode="Markdown")
+    await m.answer(text, parse_mode="Markdown", reply_markup=get_reply_kb(m.chat.id))
 
-# Сервер для приёма сигналов от MacroDroid
+# Прием сигналов от MacroDroid
 async def ping(r):
     p = r.query.get("place")
     s = r.query.get("state")
@@ -81,7 +86,6 @@ async def ping(r):
         ico = "⚡" if s == "on" else "❌"
         msg = f"{ico} **{data[p]['name']}:** Свет {new_status.lower()}! ({time_now})"
         
-        # Шлем пуш только тем, у кого включен колокольчик на эту точку
         for user_id, user_prefs in subs.items():
             if user_prefs.get(p, False):
                 try:
@@ -101,5 +105,5 @@ app.router.add_get("/ping", ping)
 app.on_startup.append(start_bot)
 
 if __name__ == "__main__":
-    web.run_app(app, 
-                port=10000)
+    web.run_app(app, port=10000)
+
