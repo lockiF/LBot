@@ -1,84 +1,61 @@
-import os
-import asyncio
+import os, asyncio
 from datetime import datetime
 from aiohttp import web
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8968356151:AAHPbdJbRJEeC4MbBEWCzIe7u_F1A39Zvxo")
-
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(token="8968356151:AAHPbdJbRJEeC4MbBEWCzIe7u_F1A39Zvxo")
 dp = Dispatcher()
 
-status_data = {
-    "home": {"status": "Неизвестно", "time": "—"},
-    "danya": {"status": "Неизвестно", "time": "—"}
+data = {
+    "home": {"s": "Неизвестно", "t": "—"},
+    "danya": {"s": "Неизвестно", "t": "—"}
 }
 
-keyboard = ReplyKeyboardMarkup(
+kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🏠 Дом"), KeyboardButton(text="🎮 Даня")],
-        [KeyboardButton(text="📊 Проверить всё")]
+        [KeyboardButton(text="📊 Оба")]
     ],
     resize_keyboard=True
 )
 
 @dp.message(Command("start"))
-async def start_cmd(message: types.Message):
-    await message.answer("Выбери адрес для проверки:", reply_markup=keyboard)
+async def start(m):
+    await m.answer("Выбери точку:", reply_markup=kb)
 
-@dp.message(lambda msg: msg.text == "🏠 Дом")
-async def check_home(message: types.Message):
-    info = status_data["home"]
-    emoji = "🟢" if info["status"] == "Есть" else "🔴" if info["status"] == "Нет" else "⚪"
-    await message.answer(f"{emoji} **Дом:** {info['status']}\n🕒 Смена статуса: {info['time']}", parse_mode="Markdown")
+@dp.message(F.text == "🏠 Дом")
+async def h(m):
+    ico = "🟢" if data["home"]["s"] == "Есть" else "🔴"
+    await m.answer(f"{ico} Дом: {data['home']['s']}\nВремя: {data['home']['t']}")
 
-@dp.message(lambda msg: msg.text == "🎮 Даня")
-async def check_danya(message: types.Message):
-    info = status_data["danya"]
-    emoji = "🟢" if info["status"] == "Есть" else "🔴" if info["status"] == "Нет" else "⚪"
-    await message.answer(f"{emoji} **Даня:** {info['status']}\n🕒 Смена статуса: {info['time']}", parse_mode="Markdown")
+@dp.message(F.text == "🎮 Даня")
+async def d(m):
+    ico = "🟢" if data["danya"]["s"] == "Есть" else "🔴"
+    await m.answer(f"{ico} Даня: {data['danya']['s']}\nВремя: {data['danya']['t']}")
 
-@dp.message(lambda msg: msg.text == "📊 Проверить всё")
-async def check_all(message: types.Message):
-    h = status_data["home"]
-    d = status_data["danya"]
-    h_em = "🟢" if h["status"] == "Есть" else "🔴" if h["status"] == "Нет" else "⚪"
-    d_em = "🟢" if d["status"] == "Есть" else "🔴" if d["status"] == "Нет" else "⚪"
-    await message.answer(
-        f"📊 **Сводка по точкам:**\n\n"
-        f"{h_em} **Дом:** {h['status']} ({h['time']})\n"
-        f"{d_em} **Даня:** {d['status']} ({d['time']})",
-        parse_mode="Markdown"
-    )
+@dp.message(F.text == "📊 Оба")
+async def a(m):
+    await m.answer(f"🏠 Дом: {data['home']['s']} ({data['home']['t']})\n🎮 Даня: {data['danya']['s']} ({data['danya']['t']})")
 
-async def handle_ping(request):
-    place = request.query.get("place")
-    state = request.query.get("state")
-
-    if place in status_data and state in ("on", "off"):
-        status_data[place]["status"] = "Есть" if state == "on" else "Нет"
-        status_data[place]["time"] = datetime.now().strftime("%H:%M:%S")
+async def ping(r):
+    p = r.query.get("place")
+    s = r.query.get("state")
+    if p in data and s in ("on", "off"):
+        data[p]["s"] = "Есть" if s == "on" else "Нет"
+        data[p]["t"] = datetime.now().strftime("%H:%M:%S")
         return web.Response(text="OK")
-    return web.Response(text="Ping alive", status=200)
+    return web.Response(text="ALIVE")
 
-async def on_startup(app):
-    # Запускаем поллинг сообщений бота в фоне
+async def start_bot(app):
     asyncio.create_task(dp.start_polling(bot))
 
-async def on_shutdown(app):
-    await bot.session.close()
-
-def init_app():
-    app = web.Application()
-    app.router.add_get("/", handle_ping)
-    app.router.add_get("/ping", handle_ping)
-    app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
-    return app
+app = web.Application()
+app.router.add_get("/", ping)
+app.router.add_get("/ping", ping)
+app.on_startup.append(start_bot)
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
-    web.run_app(init_app(), host="0.0.0.
-    0", port=port)
+    web.run_app(app, port=int(os.getenv("PORT
+    ", 10000)))
