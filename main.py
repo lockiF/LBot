@@ -15,8 +15,7 @@ data = {
 
 kb = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🏠 Дом"), KeyboardButton(text="🎮 Даня")],
-        [KeyboardButton(text="📊 Оба")]
+        [KeyboardButton(text="🏠 Дом"), KeyboardButton(text="🎮 Даня")]
     ],
     resize_keyboard=True
 )
@@ -34,10 +33,6 @@ async def h(m):
 async def d(m):
     ico = "🟢" if data["danya"]["s"] == "Есть" else "🔴"
     await m.answer(f"{ico} Даня: {data['danya']['s']}\nВремя: {data['danya']['t']}")
-
-@dp.message(F.text == "📊 Оба")
-async def a(m):
-    await m.answer(f"🏠 Дом: {data['home']['s']} ({data['home']['t']})\n🎮 Даня: {data['danya']['s']} ({data['danya']['t']})")
 
 async def ping(r):
     p = r.query.get("place")
