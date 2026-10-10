@@ -60,3 +60,11 @@ async def watchdog():
 async def start_bot(app):
     asyncio.create_task(dp.start_polling(bot))
     asyncio.create_task(watchdog())
+
+app = web.Application()
+app.router.add_get("/", ping)
+app.router.add_get("/ping", ping)
+app.on_startup.append(start_bot)
+
+if __name__ == "__main__":
+    web.run_app(app, host="0.0.0.0", port=10000)
