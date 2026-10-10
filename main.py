@@ -112,7 +112,8 @@ async def check_status(m: Message):
             lines.append(f"🟢 {d['name']}: світло є (з {d['t']})")
         else:
             lines.append(f"🔴 {d['name']}: світла нема (з {d['t']})")
-        await m.answer("\n".join(lines), reply_markup=kb(m.chat.id))
+            
+    await m.answer("\n".join(lines), reply_markup=kb(m.chat.id))
 
 async def notify(p, status):
     d = data[p]
