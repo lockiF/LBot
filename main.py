@@ -1,4 +1,3 @@
-@@ -1,174 +1,174 @@
 import os, asyncio, time, logging, json
 from datetime import datetime, timezone, timedelta
 from aiohttp import web
@@ -28,7 +27,6 @@ dp = Dispatcher()
 # Базові дані
 data = {
     "home": {"name": "Хата", "icon": "🏠", "s": None, "t": "—", "last": 0, "watch": True},
-    "danya": {"name": "Даня", "icon": "👺", "s": None, "t": "—", "last": 0, "watch": False},
     "danya": {"name": "Даня", "icon": "👺", "s": None, "t": "—", "last": 0, "watch": True},
 }
 
