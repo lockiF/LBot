@@ -24,7 +24,7 @@ dp = Dispatcher()
 
 data = {
     "home": {"name": "Хата", "icon": "🏠", "s": None, "t": "—", "last": 0, "watch": True},
-    "danya": {"name": "Даня", "icon": "🎮", "s": None, "t": "—", "last": 0, "watch": False},
+    "danya": {"name": "Даня", "icon": "👺", "s": None, "t": "—", "last": 0, "watch": False},
 }
 
 subs = {}
@@ -40,9 +40,9 @@ def kb(uid):
     bell = lambda p: "🔔" if u[p] else "🔕"
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=f"🏠 {bell('home')}"),
-             KeyboardButton(text=f"🎮 {bell('danya')}")],
-            [KeyboardButton(text="📊 Статус")],
+            [KeyboardButton(text=f"🏠 Хата: {bell('home')}"),
+             KeyboardButton(text=f"👺 Даня: {bell('danya')}")],
+            [KeyboardButton(text="📊 Статус світла")],
         ],
         resize_keyboard=True,
         persistent=True,
@@ -51,38 +51,47 @@ def kb(uid):
 @dp.message(Command("start"))
 async def start_cmd(m: Message):
     user(m.chat.id)
-    await m.answer("Готово 👇", reply_markup=kb(m.chat.id))
+    await m.answer(
+        "Я пишу, коли зникає або з'являється світло.\n"
+        "🔔 — сповіщення увімкнені, 🔕 — вимкнені. Натисни на кнопку, щоб перемкнути.",
+        reply_markup=kb(m.chat.id),
+    )
+
+async def toggle(m: Message, p: str):
+    u = user(m.chat.id)
+    u[p] = not u[p]
+    name = data[p]["name"]
+    text = f"🔔 Сповіщення по {name}: увімкнено" if u[p] else f"🔕 Сповіщення по {name}: вимкнено"
+    await m.answer(text, reply_markup=kb(m.chat.id))
 
 @dp.message(F.text.startswith("🏠"))
 async def toggle_home(m: Message):
-    u = user(m.chat.id)
-    u["home"] = not u["home"]
-    await m.answer("🏠 🔔" if u["home"] else "🏠 🔕", reply_markup=kb(m.chat.id))
+    await toggle(m, "home")
 
-@dp.message(F.text.startswith("🎮"))
+@dp.message(F.text.startswith("👺"))
 async def toggle_danya(m: Message):
-    u = user(m.chat.id)
-    u["danya"] = not u["danya"]
-    await m.answer("🎮 🔔" if u["danya"] else "🎮 🔕", reply_markup=kb(m.chat.id))
+    await toggle(m, "danya")
 
-@dp.message(F.text == "📊 Статус")
+@dp.message(F.text == "📊 Статус світла")
 async def check_status(m: Message):
     lines = []
     for d in data.values():
         if d["s"] is None:
-            lines.append(f"⚪ {d['name']} — невідомо")
+            lines.append(f"⚪ {d['name']}: невідомо")
         elif d["s"]:
-            lines.append(f"🟢 {d['name']} — є, з {d['t']}")
+            lines.append(f"🟢 {d['name']}: світло є (з {d['t']})")
         else:
-            lines.append(f"🔴 {d['name']} — нема, з {d['t']}")
+            lines.append(f"🔴 {d['name']}: світла нема (з {d['t']})")
     await m.answer("\n".join(lines), reply_markup=kb(m.chat.id))
 
 async def notify(p, status):
     d = data[p]
     d["s"] = status
     d["t"] = now_str()
-    msg = f"⚡ {d['name']} — світло є" if status else f"❌ {d['name']} — світла нема"
-    msg += f" ({d['t']})"
+    if status:
+        msg = f"⚡ {d['name']}: світло з'явилось ({d['t']})"
+    else:
+        msg = f"❌ {d['name']}: світло зникло ({d['t']})"
     for uid, prefs in list(subs.items()):
         if prefs.get(p, False):
             try:
