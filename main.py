@@ -89,9 +89,9 @@ async def notify(p, status):
     d["s"] = status
     d["t"] = now_str()
     if status:
-        msg = f"⚡ {d['name']}: світло з'явилось ({d['t']})"
+        msg = f"⚡ {d['name']}: світло з'явилось"
     else:
-        msg = f"❌ {d['name']}: світло зникло ({d['t']})"
+        msg = f"❌ {d['name']}: світло зникло"
     for uid, prefs in list(subs.items()):
         if prefs.get(p, False):
             try:
