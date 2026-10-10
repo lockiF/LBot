@@ -1,5 +1,10 @@
-import time
+import os, asyncio, time
+from datetime import datetime
 from zoneinfo import ZoneInfo
+from aiohttp import web
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message
 
 TZ = ZoneInfo("Europe/Kyiv")
 TIMEOUT = 150  # секунд без alive = света нет
