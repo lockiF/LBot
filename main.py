@@ -1,4 +1,4 @@
-import os, asyncio, time, logging
+import os, asyncio, time, logging, json
 from datetime import datetime, timezone, timedelta
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
@@ -18,6 +18,7 @@ except Exception:
     TZ = timezone(timedelta(hours=3))
 
 TIMEOUT = 150  # секунд без alive = світла нема
+SUBS_FILE = "subs.json"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -27,13 +28,34 @@ data = {
     "danya": {"name": "Даня", "icon": "👺", "s": None, "t": "—", "last": 0, "watch": False},
 }
 
-subs = {}
+# Завантаження та збереження підписників у файл, щоб Render не зкидав їх при рестарті
+def load_subs():
+    if os.path.exists(SUBS_FILE):
+        try:
+            with open(SUBS_FILE, "r", encoding="utf-8") as f:
+                data_loaded = json.load(f)
+                return {int(k): v for k, v in data_loaded.items()}
+        except Exception as e:
+            logging.error(f"Помилка читання subs.json: {e}")
+    return {}
+
+def save_subs():
+    try:
+        with open(SUBS_FILE, "w", encoding="utf-8") as f:
+            json.dump(subs, f, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"Помилка запису subs.json: {e}")
+
+subs = load_subs()
 
 def now_str():
     return datetime.now(TZ).strftime("%H:%M")
 
 def user(uid):
-    return subs.setdefault(uid, {"home": True, "danya": True})
+    if uid not in subs:
+        subs[uid] = {"home": True, "danya": True}
+        save_subs()
+    return subs[uid]
 
 def kb(uid):
     u = user(uid)
@@ -59,6 +81,7 @@ async def start_cmd(m: Message):
 async def toggle(m: Message, p: str):
     u = user(m.chat.id)
     u[p] = not u[p]
+    save_subs()
     name = data[p]["name"]
     text = f"🔔 Сповіщення по {name}: увімкнено" if u[p] else f"🔕 Сповіщення по {name}: вимкнено"
     await m.answer(text, reply_markup=kb(m.chat.id))
@@ -87,16 +110,14 @@ async def notify(p, status):
     d = data[p]
     d["s"] = status
     d["t"] = now_str()
-    if status:
-        msg = f"⚡ {d['name']}: світло з'явилось"
-    else:
-        msg = f"❌ {d['name']}: світло зникло"
+    msg = f"⚡ {d['name']}: світло з'явилось" if status else f"❌ {d['name']}: світло зникло"
+    
     for uid, prefs in list(subs.items()):
         if prefs.get(p, False):
             try:
                 await bot.send_message(chat_id=uid, text=msg)
             except Exception:
-                logging.exception("send_message failed")
+                logging.exception(f"Не вдалося відправити повідомлення користувачу {uid}")
 
 async def ping(r):
     p = r.query.get("place")
@@ -107,11 +128,17 @@ async def ping(r):
     if s in ("alive", "on", "off"):
         data[p]["last"] = time.time()
         new = False if s == "off" else True
-        if data[p]["s"] is None and s == "alive":
-            data[p]["s"] = True
+        
+        # Якщо статус у пам'яті ще не встановлений (після рестарту бота)
+        if data[p]["s"] is None:
+            data[p]["s"] = new
             data[p]["t"] = now_str()
+            # Якщо світло є — шлемо сповіщення
+            if new:
+                await notify(p, True)
         elif data[p]["s"] != new:
             await notify(p, new)
+            
         return web.Response(text="OK")
 
     return web.Response(text="ALIVE")
@@ -121,14 +148,15 @@ async def watchdog():
         await asyncio.sleep(15)
         try:
             for p, d in data.items():
-                if d["watch"] and d["s"] is True and time.time() - d["last"] > TIMEOUT:
+                if d["watch"] and d["s"] is True and (time.time() - d["last"] > TIMEOUT):
                     await notify(p, False)
         except Exception:
             logging.exception("watchdog error")
 
 async def run_polling():
     try:
-        await dp.start_polling(bot)
+        # Отключаем перехват сигналов, чтобы aiogram не падал внутри aiohttp
+        await dp.start_polling(bot, handle_signals=False)
     except Exception:
         logging.exception("POLLING CRASHED")
 
