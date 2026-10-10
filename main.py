@@ -27,7 +27,7 @@ dp = Dispatcher()
 # Базові дані
 data = {
     "home": {"name": "Хата", "icon": "🏠", "s": None, "t": "—", "last": 0, "watch": True},
-    "danya": {"name": "Даня", "icon": "👺", "s": None, "t": "—", "last": 0, "watch": False},
+    "danya": {"name": "Даня", "icon": "👺", "s": None, "t": "—", "last": 0, "watch": True},
 }
 
 def load_json(filename, default):
