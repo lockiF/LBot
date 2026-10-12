@@ -173,3 +173,31 @@ async def ping(r):
     # Якщо стан дійсно змінився
     if data[p]["s"] != new_status:
         await notify(p, new_status)
+
+    return web.Response(text="OK")
+
+async def watchdog():
+    while True:
+        await asyncio.sleep(10)
+        now = time.time()
+        for p, d in data.items():
+            if d["watch"] and d["s"] is True and d["last"] > 0 and (now - d["last"] > TIMEOUT):
+                await notify(p, False)
+
+async def run_polling():
+    try:
+        await dp.start_polling(bot, handle_signals=False)
+    except Exception:
+        logging.exception("POLLING CRASHED")
+
+async def start_bot(app):
+    asyncio.create_task(run_polling())
+    asyncio.create_task(watchdog())
+
+app = web.Application()
+app.router.add_get("/", ping)
+app.router.add_get("/ping", ping)
+app.on_startup.append(start_bot)
+
+if __name__ == "__main__":
+    web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
